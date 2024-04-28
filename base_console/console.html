@@ -1,0 +1,320 @@
+<!--!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="css/style.css">
+
+    <script src="https://cdn.jsdelivr.net/npm/bytebuffer@5.0.1"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jscdr@0.0.1"></script>
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/nipplejs/0.7.3/nipplejs.js" defer></script>
+
+    ////////<<script src="js/nipple.js" defer></script> >
+    <script src="js/ros2_class.js" defer></script>
+    <script src="js/ros2_pubsub.js" defer></script>
+    <script src="js/joystick.js" defer></script>
+</head>
+<body>
+
+    <div class="container">
+
+        <div class="telemetry_container">
+            <div class="telemetry_content">
+                <div class="warning_header">
+                    WARNING
+                </div>
+                <div class="warning_msg_box">
+                    <textarea id="warning_log_box" readonly></textarea>
+                </div>
+                <div class="cart_mode_label">
+                    Cart Mode
+                </div>
+                <div class="cart_mode_msg_box">
+                    <textarea id="cart_mode_log_box" readonly></textarea>
+                </div>
+                
+            </div>
+        </div>
+
+        <div class="video_container"> 
+            <img id="camera_img" src="" alt="video streaming"/>
+        </div>
+
+        <div class="control_panel_container">
+            <div class="control_panel_content">
+                <div class="operation_mode_label">
+                    Operation Mode
+                </div>
+                <div class="hold_mode">
+                    <button type="button" id="hold_mode_button" 
+                        onmousedown="mode_press(0)">
+                        HOLD
+                    </button>
+                </div>
+                <div class="rc_mode">
+                    <button type="button" id="rc_mode_button" 
+                        onmousedown="mode_press(1)">
+                        Radio
+                        <br >
+                        Control
+                    </button>
+                </div>
+                <div class="ros_mode">
+                    <button type="button" id="ros_mode_button" 
+                        onmousedown="mode_press(2)">
+                        ROS
+                        <br >
+                        Control
+                    </button>
+                </div>
+                <div class="vel_limit_label">
+                    /cmd_vel
+                </div>
+                <div class="vx_input">
+                    Vx:&nbsp<input id="vx_input_box" type="number" min="0.1" max="2.0" step="0.1" value="0.5">
+                </div>
+                <div class="wz_input">
+                    Wz:&nbsp<input id="wz_input_box" type="number" min="0.1" max="2.0" step="0.1" value="0.5">
+                </div>
+                <div class="relay_label">
+                    Relay Control
+                </div>
+                <div class="relay_on">
+                    <button type="button" id="relay_on_button" 
+                        onmousedown="pubRelay(1)">
+                        ON
+                    </button>
+                </div>
+                <div class="relay_off">
+                    <button type="button" id="relay_off_button" 
+                        onmousedown="pubRelay(0)">
+                        OFF
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div class="joystick_left_container">
+            <div class="joystick_left_content" id="left_nipple">
+                <span id="left_text">Touch or Click here</span>
+            </div>
+        </div>
+
+        <div class="scan_container">
+            <div id="Lidar" alt="laserscan ">
+                <canvas class="map_canvas">
+                </canvas>
+            </div>
+        </div>
+
+        <div class="joystick_right_container">
+            <div class="joystick_right_content" id="right_nipple">
+                <span id="right_text">Touch or Click here</span>
+            </div>
+        </div>
+
+
+    </div>
+    
+</body>
+</html-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="css/style.css">
+
+    <!--script src="https://cdn.jsdelivr.net/npm/bytebuffer@5.0.1"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jscdr@0.0.1"></script>
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/nipplejs/0.7.3/nipplejs.js" defer></script-->
+
+    <script type="text/javascript"src="https://cdn.jsdelivr.net/npm/eventemitter2@6.4.9/lib/eventemitter2.min.js"></script>
+    <script type="text/javascript"src="https://cdn.jsdelivr.net/npm/roslib@1/build/roslib.min.js"></script>
+
+    <!-- <script src="js/nipple.js" defer></script> -->
+    <script src="js/ros2_class.js" defer></script>
+    <script src="js/ros2_pubsub.js" defer></script>
+    <script src="js/joystick.js" defer></script>
+
+    <!--script type="text/javascript" src="https://cdn.jsdelivr.net/npm/eventemitter2@6.4.9/lib/eventemitter2.min.js"></script>
+    <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/roslib@1/build/roslib.min.js"></script-->
+
+    <script>
+        // Connecting to ROS
+        // -----------------
+        var ros = new ROSLIB.Ros();
+
+        // If there is an error on the backend, an 'error' emit will be emitted.
+        ros.on('error', function(error) {
+            document.getElementById('connecting').style.display = 'none';
+            document.getElementById('connected').style.display = 'none';
+            document.getElementById('closed').style.display = 'none';
+            document.getElementById('error').style.display = 'inline';
+            console.log(error);
+        });
+
+        // Find out exactly when we made a connection.
+        ros.on('connection', function() {
+            console.log('Connection made!');
+            document.getElementById('connecting').style.display = 'none';
+            document.getElementById('error').style.display = 'none';
+            document.getElementById('closed').style.display = 'none';
+            document.getElementById('connected').style.display = 'inline';
+        });
+
+        ros.on('close', function() {
+            console.log('Connection closed.');
+            document.getElementById('connecting').style.display = 'none';
+            document.getElementById('connected').style.display = 'none';
+            document.getElementById('closed').style.display = 'inline';
+        });
+
+        // Create a connection to the rosbridge WebSocket server.
+        // ros.connect('ws://localhost:9090');
+        ros.connect('ws://10.10.10.84:9090');
+
+        // Publish a Topic
+        var example = new ROSLIB.Topic({
+            ros : ros,
+            name : '/example_topic',
+            messageType : 'std_msgs/String'
+        });
+
+        var count = 0;
+        setInterval(() => {
+            var message = 'hello from ros2bridge ' + count++;
+            example.publish({data: message});
+            document.getElementById("publisher").innerText = message;
+        }, 1000);
+    </script>
+</head>
+<body>
+
+<div class="container">
+
+    <div class="telemetry_container">
+        <div class="telemetry_content">
+            <div class="warning_header">
+                WARNING
+            </div>
+            <div class="warning_msg_box">
+                <textarea id="warning_log_box" readonly></textarea>
+            </div>
+            <div class="cart_mode_label">
+                Cart Mode
+            </div>
+            <div class="cart_mode_msg_box">
+                <textarea id="cart_mode_log_box" readonly></textarea>
+            </div>
+
+        </div>
+    </div>
+
+    <div class="video_container">
+        <img id="camera_img" src="" alt="video streaming"/>
+    </div>
+
+    <div class="control_panel_container">
+        <div class="control_panel_content">
+            <div class="operation_mode_label">
+                Operation Mode
+            </div>
+            <div class="hold_mode">
+                <button type="button" id="hold_mode_button"
+                        onmousedown="mode_press(0)">
+                    HOLD
+                </button>
+            </div>
+            <div class="rc_mode">
+                <button type="button" id="rc_mode_button"
+                        onmousedown="mode_press(1)">
+                    Radio
+                    <br >
+                    Control
+                </button>
+            </div>
+            <div class="ros_mode">
+                <button type="button" id="ros_mode_button"
+                        onmousedown="mode_press(2)">
+                    ROS
+                    <br >
+                    Control
+                </button>
+            </div>
+            <div class="vel_limit_label">
+                /cmd_vel
+            </div>
+            <div class="vx_input">
+                Vx:&nbsp<input id="vx_input_box" type="number" min="0.1" max="2.0" step="0.1" value="0.5">
+            </div>
+            <div class="wz_input">
+                Wz:&nbsp<input id="wz_input_box" type="number" min="0.1" max="2.0" step="0.1" value="0.5">
+            </div>
+            <div class="relay_label">
+                Relay Control
+            </div>
+            <div class="relay_on">
+                <button type="button" id="relay_on_button"
+                        onmousedown="pubRelay(1)">
+                    ON
+                </button>
+            </div>
+            <div class="relay_off">
+                <button type="button" id="relay_off_button"
+                        onmousedown="pubRelay(0)">
+                    OFF
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="joystick_left_container">
+        <div class="joystick_left_content" id="left_nipple">
+            <span id="left_text">Touch or Click here</span>
+        </div>
+    </div>
+
+    <div class="scan_container">
+        <div id="Lidar" alt="laserscan ">
+            <canvas class="map_canvas">
+            </canvas>
+        </div>
+    </div>
+
+    <div class="joystick_right_container">
+        <div class="joystick_right_content" id="right_nipple">
+            <span id="right_text">Touch or Click here</span>
+        </div>
+    </div>
+
+
+</div>
+
+<h1>Simple Publisher Example</h1>
+<p>This example will publish a topic named "example_topic".</p>
+<div id="statusIndicator">
+    <p id="connecting">
+        Connecting to rosbridge...
+    </p>
+    <p id="connected" style="color:#00D600; display:none">
+        Connected
+    </p>
+    <p id="error" style="color:#FF0000; display:none">
+        Error in the backend!
+    </p>
+    <p id="closed" style="display:none">
+        Connection closed.
+    </p>
+</div>
+<div>
+    <p>
+        <b>Publish message: </b>
+        <span id="publisher"></span>
+    </p>
+</div>
+
+</body>
+</html>
